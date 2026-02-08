@@ -67,16 +67,6 @@ func Discard() *slog.Logger {
 	return slog.New(slog.NewJSONHandler(io.Discard, nil))
 }
 
-// WithAttrs creates a new logger with added attributes (useful for context)
-func WithAttrs(attrs ...any) *slog.Logger {
-	return logger.With(attrs...)
-}
-
-// WithGroup creates a new logger with a group of attributes
-func WithGroup(name string) *slog.Logger {
-	return logger.WithGroup(name)
-}
-
 //
 // re-export slog methods
 //
@@ -129,4 +119,19 @@ func Log(ctx context.Context, level slog.Level, msg string, args ...any) {
 // LogAttrs calls [Logger.LogAttrs] on the default logger.
 func LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
 	logger.LogAttrs(ctx, level, msg, attrs...)
+}
+
+// With calls [Logger.With] on the default logger.
+func With(args ...any) *slog.Logger {
+	return logger.With(args...)
+}
+
+// WithAttrs creates a new logger with added attributes (useful for context)
+func WithAttrs(attrs ...any) *slog.Logger {
+	return logger.With(attrs...)
+}
+
+// WithGroup creates a new logger with a group of attributes
+func WithGroup(name string) *slog.Logger {
+	return logger.WithGroup(name)
 }
