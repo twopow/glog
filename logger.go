@@ -17,6 +17,8 @@ const (
 var globalExtraFields = map[string]interface{}{}
 var logger *slog.Logger
 
+var sourceLevels = []slog.Level{slog.LevelDebug}
+
 // Init initializes the logger with GCP-friendly format
 func NewLogger(level string) *slog.Logger {
 	// Parse log level
@@ -35,11 +37,17 @@ func NewLogger(level string) *slog.Logger {
 	}
 
 	// Create handler with GCP-compatible format
-	handler := NewGCPHandler(os.Stdout, logLevel)
+	handler := NewGCPHandler(os.Stdout, logLevel, sourceLevels)
 
 	logger = slog.New(handler)
 
 	return logger
+}
+
+// SetSourceLevels sets the source levels for the logger
+// this only has effect if the logger is not already initialized
+func SetSourceLevels(levels []slog.Level) {
+	sourceLevels = levels
 }
 
 // MergeGlobalExtraFields merges extra fields into the global extra fields

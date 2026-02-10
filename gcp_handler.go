@@ -6,15 +6,17 @@ import (
 	"io"
 	"log/slog"
 	"runtime"
+	"slices"
 	"time"
 )
 
 // GCPHandler is a slog.Handler that formats logs for GCP Cloud Logging
 type GCPHandler struct {
-	w     io.Writer
-	level slog.Level
-	attrs []slog.Attr
-	group string
+	w            io.Writer
+	level        slog.Level
+	attrs        []slog.Attr
+	group        string
+	sourceLevels []slog.Level // levels to log source location for
 }
 
 // gcpLogEntry represents a GCP Cloud Logging compatible log entry
@@ -34,11 +36,12 @@ type sourceLocation struct {
 }
 
 // NewGCPHandler creates a new GCP Cloud Logging compatible handler
-func NewGCPHandler(w io.Writer, level slog.Level) *GCPHandler {
+func NewGCPHandler(w io.Writer, level slog.Level, sourceLevels []slog.Level) *GCPHandler {
 	return &GCPHandler{
-		w:     w,
-		level: level,
-		attrs: make([]slog.Attr, 0),
+		w:            w,
+		level:        level,
+		sourceLevels: sourceLevels,
+		attrs:        make([]slog.Attr, 0),
 	}
 }
 
@@ -60,9 +63,7 @@ func (h *GCPHandler) Handle(ctx context.Context, r slog.Record) error {
 		Extra:     globalExtraFields,
 	}
 
-	// add source location if available and level is debug or error
-	shouldLogSource := r.Level == slog.LevelDebug || r.Level == slog.LevelError
-	if r.PC != 0 && shouldLogSource {
+	if r.PC != 0 && slices.Contains(h.sourceLevels, r.Level) {
 		fs := runtime.CallersFrames([]uintptr{r.PC})
 		f, _ := fs.Next()
 		entry.SourceLocation = &sourceLocation{
