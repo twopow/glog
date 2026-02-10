@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"time"
 )
 
 type contextKey string
@@ -73,52 +74,52 @@ func Discard() *slog.Logger {
 
 // Debug calls [Logger.Debug] on the default logger.
 func Debug(msg string, args ...any) {
-	logger.Debug(msg, args...)
+	log(context.Background(), slog.LevelDebug, msg, args...)
 }
 
 // DebugContext calls [Logger.DebugContext] on the default logger.
 func DebugContext(ctx context.Context, msg string, args ...any) {
-	logger.DebugContext(ctx, msg, args...)
+	log(ctx, slog.LevelDebug, msg, args...)
 }
 
 // Info calls [Logger.Info] on the default logger.
 func Info(msg string, args ...any) {
-	logger.Info(msg, args...)
+	log(context.Background(), slog.LevelInfo, msg, args...)
 }
 
 // InfoContext calls [Logger.InfoContext] on the default logger.
 func InfoContext(ctx context.Context, msg string, args ...any) {
-	logger.InfoContext(ctx, msg, args...)
+	log(ctx, slog.LevelInfo, msg, args...)
 }
 
 // Warn calls [Logger.Warn] on the default logger.
 func Warn(msg string, args ...any) {
-	logger.Warn(msg, args...)
+	log(context.Background(), slog.LevelWarn, msg, args...)
 }
 
 // WarnContext calls [Logger.WarnContext] on the default logger.
 func WarnContext(ctx context.Context, msg string, args ...any) {
-	logger.WarnContext(ctx, msg, args...)
+	log(ctx, slog.LevelWarn, msg, args...)
 }
 
 // Error calls [Logger.Error] on the default logger.
 func Error(msg string, args ...any) {
-	logger.Error(msg, args...)
+	log(context.Background(), slog.LevelError, msg, args...)
 }
 
 // ErrorContext calls [Logger.ErrorContext] on the default logger.
 func ErrorContext(ctx context.Context, msg string, args ...any) {
-	logger.ErrorContext(ctx, msg, args...)
+	log(ctx, slog.LevelError, msg, args...)
 }
 
 // Log calls [Logger.Log] on the default logger.
 func Log(ctx context.Context, level slog.Level, msg string, args ...any) {
-	logger.Log(ctx, level, msg, args...)
+	log(ctx, level, msg, args...)
 }
 
 // LogAttrs calls [Logger.LogAttrs] on the default logger.
 func LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
-	logger.LogAttrs(ctx, level, msg, attrs...)
+	logAttrs(ctx, level, msg, attrs...)
 }
 
 // With calls [Logger.With] on the default logger.
@@ -134,4 +135,34 @@ func WithAttrs(attrs ...any) *slog.Logger {
 // WithGroup creates a new logger with a group of attributes
 func WithGroup(name string) *slog.Logger {
 	return logger.WithGroup(name)
+}
+
+// log is the low-level logging method reimplementation of
+// slog.logger.log so that we can define the outside caller
+func log(ctx context.Context, level slog.Level, msg string, args ...any) {
+	// mirror slog's fast-path behavior
+	if !logger.Enabled(ctx, level) {
+		return
+	}
+
+	pc := outsideCaller()
+	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r.Add(args...)
+
+	_ = logger.Handler().Handle(ctx, r)
+}
+
+// logAttrs is like [log], but for methods that take ...slog.Attr.
+// (this is verbatim from slog.logger.logAttrs)
+func logAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
+	// mirror slog's fast-path behavior
+	if !logger.Enabled(ctx, level) {
+		return
+	}
+
+	pc := outsideCaller()
+	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r.AddAttrs(attrs...)
+
+	_ = logger.Handler().Handle(ctx, r)
 }
