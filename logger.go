@@ -44,6 +44,16 @@ func NewLogger(level string) *slog.Logger {
 	return logger
 }
 
+// SetLogger sets the global glog logger
+func SetLogger(l *slog.Logger) {
+	logger = l
+}
+
+// GetLogger returns the global glog logger
+func GetLogger() *slog.Logger {
+	return logger
+}
+
 // SetSourceLevels sets the source levels for the logger
 // this only has effect if the logger is not already initialized
 func SetSourceLevels(levels []slog.Level) {
