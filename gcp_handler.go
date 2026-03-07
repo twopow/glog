@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"maps"
 	"runtime"
 	"slices"
 	"time"
@@ -21,12 +22,12 @@ type GCPHandler struct {
 
 // gcpLogEntry represents a GCP Cloud Logging compatible log entry
 type gcpLogEntry struct {
-	Severity       string                 `json:"severity"`
-	Message        string                 `json:"message"`
-	Timestamp      string                 `json:"timestamp"`
-	SourceLocation *sourceLocation        `json:"logging.googleapis.com/sourceLocation,omitempty"`
-	Context        map[string]interface{} `json:"context"`
-	Extra          map[string]interface{} `json:"extra"`
+	Severity       string          `json:"severity"`
+	Message        string          `json:"message"`
+	Timestamp      string          `json:"timestamp"`
+	SourceLocation *sourceLocation `json:"logging.googleapis.com/sourceLocation,omitempty"`
+	Context        map[string]any  `json:"context"`
+	Extra          map[string]any  `json:"extra"`
 }
 
 type sourceLocation struct {
@@ -59,7 +60,7 @@ func (h *GCPHandler) Handle(ctx context.Context, r slog.Record) error {
 		Severity:  severity,
 		Message:   r.Message,
 		Timestamp: r.Time.UTC().Format(time.RFC3339Nano),
-		Context:   map[string]interface{}{},
+		Context:   map[string]any{},
 		Extra:     globalExtraFields,
 	}
 
@@ -119,7 +120,29 @@ func (h *GCPHandler) WithGroup(name string) slog.Handler {
 }
 
 // addAttrToFields adds an slog.Attr to the fields map
-func addAttrToFields(fields map[string]interface{}, attr slog.Attr) {
+func addAttrToFields(fields map[string]any, attr slog.Attr) {
+	// recursively map slog Group to fields
+	if attr.Value.Kind() == slog.KindGroup {
+		group := map[string]any{}
+		for _, a := range attr.Value.Group() {
+			addAttrToFields(group, a)
+		}
+
+		if attr.Key != "" {
+			// keyed group
+			fields[attr.Key] = group
+			return
+		}
+
+		// keyless (inline) group - merge into parent
+		maps.Copy(fields, group)
+		return
+	}
+
+	//
+	// value formatters
+	//
+
 	if attr.Value.Kind() == slog.KindAny {
 		// if attr is error, convert to string
 		if err, ok := attr.Value.Any().(error); ok {
